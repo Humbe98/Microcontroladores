@@ -1,0 +1,20 @@
+int leds[] = {17, 5, 18, 19};  // Pines de los LEDs
+int estado = 0b0111;        // Estado inicial (0111)
+
+void setup() {
+  for (int i = 0; i < 4; i++) {
+    pinMode(leds[i], OUTPUT);  // Configura los pines como salida
+  }
+}
+
+void loop() {
+  // Actualiza los LEDs según el estado
+  for (int i = 0; i < 4; i++) {
+    digitalWrite(leds[i], (estado >> i) & 1);
+  }
+
+  // Desplazamiento circular a la izquierda
+  estado = (estado << 1) | ((estado >> 3) & 1);  // Desplaza a la izquierda y rota el bit más significativo al menos significativo
+
+  delay(5000);  // Pausa de medio segundo
+}
