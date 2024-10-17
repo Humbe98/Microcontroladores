@@ -1,0 +1,65 @@
+#define E 33 
+#define RS 25 //modo datos o modo comandos
+char Datos[] = {26, 27, 14, 12}; //lineas de datos del LCD
+
+void setup() {
+  // Configurar los pines como salida
+  for (int i = 0; i < 4; i++) { 
+    pinMode(Datos[i], OUTPUT);
+  }
+  pinMode(E, OUTPUT);
+  pinMode(RS, OUTPUT);
+
+  iniciarLCD(); // Iniciar el LCD
+  Mensaje("Buen Dia, Inge"); // Escribir primer mensaje
+  enviarComando(0xC0); // Mover el cursor a la segunda línea
+  Mensaje("Como esta?"); // Escribir segundo mensaje
+}
+
+void iniciarLCD() {
+  enviarComando(0x32); //Configura el LCD en modo de 4 bits
+  enviarComando(0x0F); //Activa el display y muestra el cursor
+  enviarComando(0x06); //Configura el comportamiento del cursor
+  enviarComando(0x01); //Limpia la pantalla
+}
+
+void Mensaje(char mensaje[]) { 
+  int i = 0;
+  while (mensaje[i] != '\0') { // Recorrer el mensaje hasta que termine
+    enviarDato(mensaje[i]); // Enviar cada letra
+    i++;
+  }
+}
+
+void enviarDato(char dato) {
+  digitalWrite(RS, HIGH); // Modo datos (RS en HIGH)
+  enviarNibble(dato); // Enviar el dato en dos mitades
+}
+
+void enviarComando(char comando) {
+  digitalWrite(RS, LOW); // Modo comandos (RS en LOW)
+  enviarNibble(comando); // Enviar el comando en dos mitades
+}
+
+void enviarNibble(char valor) {
+  for (int i = 0; i < 4; i++) {
+    digitalWrite(Datos[i], (valor >> (4 + i)) & 1); // Envia cada bit
+  }
+  activarPulso(); // Decirle al LCD que lea la parte alta
+
+  for (int i = 0; i < 4; i++) {
+    digitalWrite(Datos[i], (valor >> i) & 1); // Envia cada bit
+  }
+  activarPulso(); // Decirle al LCD que lea la parte baja
+}
+
+void activarPulso() {
+  digitalWrite(E, HIGH); // Activar señal de lectura
+  delay(100); // Pausa para que el LCD lo lea
+  digitalWrite(E, LOW); // Desactivar señal de lectura
+  delay(100); // Pausa para estabilizar
+}
+
+void loop() {
+  // No hay nada en el bucle
+}
