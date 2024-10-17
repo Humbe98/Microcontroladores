@@ -1,0 +1,127 @@
+/*
+          PROGRAMA PANTALLA LCD I2C
+      Este programa controla un LCD 16x2 usando el I2C manualmente
+    con un ESP32, sin librerías externas. Inicializa el LCD y muestra
+            en la primera línea y segunda, el mensaje. 
+    El protocolo I2C se simula usando los pines SDA (21) y SCL (22) 
+        para enviar comandos y datos al LCD en modo de 4 bits, 
+     permitiendo controlar el display sin dependencias adicionales.
+
+    Practica: Comunicación I2C
+    Nombre: Humberto Alvarado Ramos
+
+
+*/
+#define SDA 21  // Pin para SDA
+#define SCL 22  // Pin para SCL
+#define LCD_ADDR 0x27  // Dirección I2C del LCD
+
+void setup() {
+  pinMode(SDA, OUTPUT);
+  pinMode(SCL, OUTPUT);
+
+  digitalWrite(SDA, HIGH);
+  digitalWrite(SCL, HIGH);
+
+  lcd_inicializar();  // Inicializa el LCD
+
+  lcd_posicionar_cursor(0x80);  // Mueve el cursor a la primera línea
+  lcd_imprimir("Que tal");
+
+  lcd_posicionar_cursor(0xC0);  // Mueve el cursor a la segunda línea
+  lcd_imprimir("Ingeniero");
+}
+
+void loop() {
+}
+
+// Funciones para el protocolo I2C manual (bit-banging)
+void iniciar() {
+  digitalWrite(SDA, HIGH);
+  digitalWrite(SCL, HIGH);
+  delay(5);
+  digitalWrite(SDA, LOW);
+  delay(5);
+  digitalWrite(SCL, LOW);
+}
+
+void detener() {
+  digitalWrite(SDA, LOW);
+  digitalWrite(SCL, HIGH);
+  delay(5);
+  digitalWrite(SDA, HIGH);
+}
+
+bool verificar() {
+  pinMode(SDA, INPUT);
+  digitalWrite(SCL, HIGH);
+  delay(5);
+  bool ack = !digitalRead(SDA);  // El LCD pone SDA en LOW si reconoce el byte
+  digitalWrite(SCL, LOW);
+  pinMode(SDA, OUTPUT);
+  return ack;
+}
+
+void enviar_byte(unsigned char dato) {
+  for (int i = 0; i < 8; i++) {
+    digitalWrite(SDA, (dato & 0x80) ? HIGH : LOW);
+    dato <<= 1;
+    delay(5);
+    digitalWrite(SCL, HIGH);
+    delay(5);
+    digitalWrite(SCL, LOW);
+  }
+  verificar();
+}
+
+// Enviar un byte al LCD
+void lcd_enviar_byte(unsigned char bits, unsigned char modo, bool iniciarTransaccion) {
+  unsigned char bitsAltos = modo | (bits & 0xF0) | 0x08;  // Enviar los 4 bits altos con la luz de fondo activa
+  unsigned char bitsBajos = modo | ((bits << 4) & 0xF0) | 0x08;  // Enviar los 4 bits bajos con la luz de fondo activa
+
+  if (iniciarTransaccion) {
+    iniciar();
+  }
+  enviar_byte(LCD_ADDR << 1);  // Dirección con bit de escritura
+  enviar_byte(bitsAltos);
+  lcd_enable(bitsAltos);
+  enviar_byte(bitsBajos);
+  lcd_enable(bitsBajos);
+  if (iniciarTransaccion) {
+    detener();
+  }
+}
+
+// Activa el bit de habilitación en el LCD
+void lcd_enable(unsigned char bits) {
+  enviar_byte(bits | 0x04);  // Activa ENABLE
+  delay(5);
+}
+
+// Inicializar el LCD
+void lcd_inicializar() {
+  lcd_enviar_byte(0x33, 0, true);  // Inicialización en modo 4 bits
+  delay(5);
+  lcd_enviar_byte(0x32, 0, true);  // Inicialización en modo 4 bits
+  delay(5);
+  lcd_enviar_byte(0x28, 0, true);  // Interfaz de 2 líneas, 5x8
+  delay(5);
+  lcd_enviar_byte(0x0C, 0, true);  // Enciende el LCD, sin cursor
+  delay(5);
+  lcd_enviar_byte(0x06, 0, true);  // Movimiento automático del cursor
+  delay(5);
+  lcd_enviar_byte(0x01, 0, true);  // Limpia la pantalla
+  delay(5);
+}
+
+// Posiciona el cursor en una línea específica
+void lcd_posicionar_cursor(int linea) {
+  lcd_enviar_byte(linea, 0, true);
+}
+
+// Imprime una cadena de texto en el LCD
+void lcd_imprimir(const char* texto) {
+  while (*texto) {
+    lcd_enviar_byte(*texto++, 1, true);
+  }
+}
